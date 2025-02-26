@@ -8,10 +8,10 @@ from config import DB_CONFIG
 _encoding_cache = {}
 
 def load_face_encodings() -> tuple[dict | None, str]:
-    """Load face encodings from the database with caching."""
+    """Load face encodings from the database with forced refresh."""
     global _encoding_cache
-    if _encoding_cache:
-        return _encoding_cache, "Loaded from cache."
+    # Clear the cache to ensure fresh data
+    _encoding_cache.clear()
 
     try:
         with mysql.connector.connect(**DB_CONFIG) as conn:
@@ -27,7 +27,7 @@ def load_face_encodings() -> tuple[dict | None, str]:
     except mysql.connector.Error as err:
         return None, f"Database error: {err}"
 
-def record_attendance(user_id: int, last_attendance: dict, cooldown: int = 60) -> tuple[bool, str]:
+def record_attendance(user_id: int, last_attendance: dict, cooldown: int = 30) -> tuple[bool, str]:
     """Record attendance for a user if cooldown period has passed."""
     current_time = datetime.now()
     if user_id in last_attendance and (current_time - last_attendance[user_id]).seconds < cooldown:
