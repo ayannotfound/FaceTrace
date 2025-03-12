@@ -1,4 +1,3 @@
-// static/script.js
 document.addEventListener('DOMContentLoaded', () => {
     const socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
     console.log('SocketIO initialized, connecting to:', location.protocol + '//' + document.domain + ':' + location.port);
@@ -10,6 +9,43 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('disconnect', () => {
         console.log('SocketIO disconnected');
     });
+
+    // Webcam setup
+    const video = document.getElementById('video-feed');
+    let stream;
+    if (video) {
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(mediaStream => {
+                stream = mediaStream;
+                video.srcObject = stream;
+                video.play();
+                startSendingFrames();
+            })
+            .catch(err => {
+                console.error('Error accessing webcam:', err);
+                alert('Could not access webcam: ' + err.message);
+            });
+    }
+
+    function startSendingFrames() {
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 480;
+        const context = canvas.getContext('2d');
+        let lastFrameTime = 0;
+        const frameInterval = 500; // Throttle to 500ms (2 FPS)
+
+        function sendFrame(timestamp) {
+            if (timestamp - lastFrameTime >= frameInterval && video.srcObject) {
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const frameData = canvas.toDataURL('image/jpeg', 0.8);
+                socket.emit('video_frame', frameData);
+                lastFrameTime = timestamp;
+            }
+            requestAnimationFrame(sendFrame);
+        }
+        requestAnimationFrame(sendFrame);
+    }
 
     // Update user list
     function updateUserList(users) {
@@ -26,6 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Generate calendar
     function generateCalendar(attendedDates) {
+        console.log('Generating calendar with attendedDates:', attendedDates);
         const today = new Date();
         const year = today.getFullYear();
         const month = today.getMonth();
@@ -62,13 +99,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const td = document.createElement('td');
             td.textContent = day;
 
+            td.className = '';
+
             const jsDay = currentDate.getDay();
             const weekday = (jsDay + 6) % 7;
 
-            if (currentDate > today) {
-                td.classList.add('non-working');
-            } else if (attendedDates.includes(dateStr)) {
+            if (Array.isArray(attendedDates) && attendedDates.includes(dateStr)) {
                 td.classList.add('present');
+                console.log(`Marked ${dateStr} as present`);
+            } else if (currentDate > today) {
+                td.classList.add('non-working');
             } else if (weekday < 5) {
                 td.classList.add('absent');
             } else {
@@ -85,6 +125,15 @@ document.addEventListener('DOMContentLoaded', () => {
         table.appendChild(thead);
         table.appendChild(tbody);
         calendarDiv.appendChild(table);
+    }
+
+    // Debounce utility
+    function debounce(func, wait) {
+        let timeout;
+        return function (...args) {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(this, args), wait);
+        };
     }
 
     // Main Page Logic
@@ -105,68 +154,65 @@ document.addEventListener('DOMContentLoaded', () => {
         const userHistoryTableBody = document.querySelector('#user-history-table tbody');
         const attendancePercentage = document.getElementById('recognized-attendance-percentage');
 
-        // Function to show modal with animation
+        // Add elements for department and role
+        const recognizedDepartment = document.getElementById('recognized-department');
+        const recognizedRole = document.getElementById('recognized-role');
+
         function showModal(modal) {
             modal.style.display = 'block';
             setTimeout(() => modal.classList.add('show'), 10);
         }
 
-        // Function to hide modal with animation
         function hideModal(modal) {
             modal.classList.remove('show');
             setTimeout(() => modal.style.display = 'none', 300);
         }
 
-        // Close Modals - Specific to each modal
-        document.querySelector('#history-modal .close').addEventListener('click', () => {
-            hideModal(historyModal);
-        });
-        document.querySelector('#manage-users-modal .close').addEventListener('click', () => {
-            hideModal(manageUsersModal);
-        });
+        document.querySelector('#history-modal .close').addEventListener('click', () => hideModal(historyModal));
+        document.querySelector('#manage-users-modal .close').addEventListener('click', () => hideModal(manageUsersModal));
         document.querySelector('#user-recognition-modal .close').addEventListener('click', () => {
             hideModal(userRecognitionModal);
-            recognizedQueue.shift(); // Remove current user
+            recognizedQueue.shift();
             showNextRecognized();
         });
-        document.querySelector('#attendance-breakdown-modal .close').addEventListener('click', () => {
-            hideModal(attendanceBreakdownModal);
-        });
+        document.querySelector('#attendance-breakdown-modal .close').addEventListener('click', () => hideModal(attendanceBreakdownModal));
 
-        // Start Attendance
-        startBtn.addEventListener('click', () => {
+        startBtn.addEventListener('click', debounce(() => {
             fetch('/start_attendance', { method: 'POST' })
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    return response.json();
+                })
                 .then(data => {
-                    if (data.message.includes("Camera not available")) {
-                        alert(data.message);
-                    } else {
-                        startBtn.disabled = true;
-                        stopBtn.disabled = false;
-                        recognizedQueue = [];
-                        lastRecognizedRoll = null;
-                        console.log('Attendance started, queue and lastRecognizedRoll reset');
-                    }
-                });
-        });
+                    startBtn.disabled = true;
+                    stopBtn.disabled = false;
+                    recognizedQueue = [];
+                    lastRecognizedRoll = null;
+                })
+                .catch(error => console.error('Start Attendance error:', error));
+        }, 300));
 
-        // Stop Attendance
-        stopBtn.addEventListener('click', () => {
+        stopBtn.addEventListener('click', debounce(() => {
             fetch('/stop_attendance', { method: 'POST' })
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    return response.json();
+                })
                 .then(data => {
                     startBtn.disabled = false;
                     stopBtn.disabled = true;
                     recognizedQueue = [];
                     lastRecognizedRoll = null;
-                    console.log('Attendance stopped, queue and lastRecognizedRoll cleared');
-                });
-        });
+                })
+                .catch(error => console.error('Stop Attendance error:', error));
+        }, 300));
 
-        // View History
-        historyBtn.addEventListener('click', () => {
+        historyBtn.addEventListener('click', debounce(() => {
             fetch('/history')
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    return response.json();
+                })
                 .then(data => {
                     historyTableBody.innerHTML = '';
                     data.forEach(record => {
@@ -181,13 +227,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         historyTableBody.appendChild(tr);
                     });
                     showModal(historyModal);
-                });
-        });
+                })
+                .catch(error => console.error('History error:', error));
+        }, 300));
 
-        // Manage Users
-        manageUsersBtn.addEventListener('click', () => {
+        manageUsersBtn.addEventListener('click', debounce(() => {
             fetch('/manage_users_data')
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    return response.json();
+                })
                 .then(data => {
                     usersTableBody.innerHTML = '';
                     data.forEach(user => {
@@ -204,60 +253,63 @@ document.addEventListener('DOMContentLoaded', () => {
                         usersTableBody.appendChild(tr);
                     });
                     showModal(manageUsersModal);
-                });
-        });
+                })
+                .catch(error => console.error('Manage Users error:', error));
+        }, 300));
 
-        // Delete User and Details
         usersTableBody.addEventListener('click', (e) => {
             if (e.target.classList.contains('delete-btn')) {
                 const userId = e.target.dataset.id;
                 if (confirm('Are you sure you want to delete this user?')) {
                     fetch(`/delete_user/${userId}`, { method: 'DELETE' })
-                        .then(response => response.json())
+                        .then(response => {
+                            if (!response.ok) throw new Error('Network response was not ok');
+                            return response.json();
+                        })
                         .then(data => {
                             if (data.success) {
                                 e.target.parentElement.parentElement.remove();
                                 fetch('/users')
-                                    .then(response => response.json())
+                                    .then(resp => resp.json())
                                     .then(data => updateUserList(data));
                             }
-                        });
+                        })
+                        .catch(error => console.error('Delete User error:', error));
                 }
             }
             if (e.target.classList.contains('details-btn')) {
                 const userId = e.target.dataset.id;
                 fetch(`/get_user_history?user_id=${userId}`)
                     .then(response => {
-                        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                        if (!response.ok) throw new Error('Network response was not ok');
                         return response.json();
                     })
                     .then(userData => {
-                        if (userData.error) throw new Error(userData.error);
                         document.getElementById('recognized-name').textContent = userData.name;
                         document.getElementById('recognized-roll').textContent = userData.roll_number;
+                        document.getElementById('recognized-department').textContent = userData.department || 'N/A';
+                        document.getElementById('recognized-role').textContent = userData.role || 'N/A';
                         document.getElementById('recognized-attendance-percentage').textContent = userData.attendance_percentage;
                         userHistoryTableBody.innerHTML = '';
                         userData.history.forEach(record => {
                             const tr = document.createElement('tr');
-                            tr.innerHTML = `
-                                <td>${record.time}</td>
-                                <td>${record.date}</td>
-                            `;
+                            tr.innerHTML = `<td>${record.time}</td><td>${record.date}</td>`;
                             userHistoryTableBody.appendChild(tr);
                         });
+                        currentAttendedDates = Array.isArray(userData.attended_dates) ? userData.attended_dates : [];
+                        console.log('Updated currentAttendedDates (details):', currentAttendedDates);
                         showModal(userRecognitionModal);
                     })
-                    .catch(error => {
-                        console.error('Error fetching user details:', error);
-                        alert('Failed to load user details: ' + error.message);
-                    });
+                    .catch(error => console.error('User History error:', error));
             }
         });
 
-        // Export Attendance
-        exportBtn.addEventListener('click', () => {
+        exportBtn.addEventListener('click', debounce(() => {
             fetch('/export')
-                .then(response => response.blob())
+                .then(response => {
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    return response.blob();
+                })
                 .then(blob => {
                     const url = window.URL.createObjectURL(blob);
                     const a = document.createElement('a');
@@ -265,130 +317,136 @@ document.addEventListener('DOMContentLoaded', () => {
                     a.download = `attendance_${new Date().toISOString().replace(/[:.]/g, '-')}.csv`;
                     a.click();
                     window.URL.revokeObjectURL(url);
-                });
-        });
+                })
+                .catch(error => console.error('Export error:', error));
+        }, 300));
 
-        // Navigation to Register User
         registerUserBtn.addEventListener('click', () => {
             window.location.href = '/register_user';
         });
 
-        // Initial user list
         fetch('/users')
             .then(response => response.json())
-            .then(data => updateUserList(data));
+            .then(data => updateUserList(data))
+            .catch(error => console.error('Initial Users fetch error:', error));
 
-        // Handle user recognition with queue
         let recognizedQueue = [];
         let currentAttendedDates = [];
         let lastRecognizedRoll = null;
-        let lastEventTimestamp = 0; // Track timestamp of last processed event
+        let lastEventTimestamp = 0;
+        let currentUserId = null;
 
         function showNextRecognized() {
-            if (recognizedQueue.length === 0) {
-                console.log('Queue empty, no modal to show');
-                return;
-            }
+            if (recognizedQueue.length === 0) return;
             const data = recognizedQueue[0];
             document.getElementById('recognized-name').textContent = data.name;
             document.getElementById('recognized-roll').textContent = data.roll_number;
+            document.getElementById('recognized-department').textContent = data.department || 'N/A';
+            document.getElementById('recognized-role').textContent = data.role || 'N/A';
             document.getElementById('recognized-attendance-percentage').textContent = data.attendance_percentage;
             userHistoryTableBody.innerHTML = '';
             data.history.forEach(record => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${record.time}</td>
-                    <td>${record.date}</td>
-                `;
+                tr.innerHTML = `<td>${record.time}</td><td>${record.date}</td>`;
                 userHistoryTableBody.appendChild(tr);
             });
-            currentAttendedDates = data.attended_dates;
+            currentAttendedDates = Array.isArray(data.attended_dates) ? data.attended_dates : [];
+            currentUserId = data.user_id || null;
             lastRecognizedRoll = data.roll_number;
-
-            // Show green tick animation, then modal
+        
             tickOverlay.style.display = 'flex';
             setTimeout(() => {
                 tickOverlay.style.display = 'none';
                 showModal(userRecognitionModal);
             }, 1000);
         }
-
+        
         socket.on('user_recognized', (data) => {
             const now = Date.now();
-            console.log('Received user_recognized event:', data, 'Timestamp:', now);
-
-            // Add timestamp to data if not present
             data.timestamp = data.timestamp || now;
+            if (data.timestamp <= lastEventTimestamp || (now - lastEventTimestamp) < 5000) return;
 
-            // Ignore events older than the last processed event or too frequent
-            if (data.timestamp <= lastEventTimestamp || (now - lastEventTimestamp) < 5000) {
-                console.log('Ignoring duplicate or stale event:', data);
-                return;
-            }
-
-            // Only add to queue if it's a new recognition
             if (data.roll_number !== lastRecognizedRoll || recognizedQueue.length === 0) {
                 recognizedQueue.push(data);
                 lastEventTimestamp = data.timestamp;
-                console.log('Added to queue:', data, 'Queue length:', recognizedQueue.length);
-                if (recognizedQueue.length === 1) {
-                    showNextRecognized();
-                }
-            } else {
-                console.log('Duplicate roll number ignored:', data.roll_number);
+                if (recognizedQueue.length === 1) showNextRecognized();
             }
         });
 
-        // Show calendar on percentage click
-        attendancePercentage.addEventListener('click', () => {
-            generateCalendar(currentAttendedDates);
-            showModal(attendanceBreakdownModal);
-        });
+        attendancePercentage.addEventListener('click', debounce(() => {
+            if (currentUserId) {
+                fetch(`/get_user_history?user_id=${currentUserId}`)
+                    .then(response => {
+                        if (!response.ok) throw new Error('Network response was not ok');
+                        return response.json();
+                    })
+                    .then(userData => {
+                        currentAttendedDates = Array.isArray(userData.attended_dates) ? userData.attended_dates : [];
+                        document.getElementById('recognized-name').textContent = userData.name;
+                        document.getElementById('recognized-roll').textContent = userData.roll_number;
+                        document.getElementById('recognized-department').textContent = userData.department || 'N/A';
+                        document.getElementById('recognized-role').textContent = userData.role || 'N/A';
+                        document.getElementById('recognized-attendance-percentage').textContent = userData.attendance_percentage;
+                        console.log('Fetched currentAttendedDates for calendar:', currentAttendedDates);
+                        generateCalendar(currentAttendedDates);
+                        showModal(attendanceBreakdownModal);
+                    })
+                    .catch(error => console.error('Fetch user history for calendar error:', error));
+            } else {
+                console.log('No user_id available, using currentAttendedDates:', currentAttendedDates);
+                generateCalendar(currentAttendedDates);
+                showModal(attendanceBreakdownModal);
+            }
+        }, 300));
     }
 
     // Register User Page Logic
-    const videoFeed = document.getElementById('video-feed');
-    const registerBtn = document.getElementById('register-btn');
-    const backBtn = document.getElementById('back-btn');
     const registerForm = document.getElementById('register-form');
+    const backBtn = document.getElementById('back-btn');
+    const tickOverlay = document.getElementById('tick-overlay');
 
-    if (videoFeed && registerBtn && backBtn && registerForm) {
-        console.log('Register page elements found, initializing...');
-
+    if (registerForm && backBtn && video) {
         registerForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            console.log('Register form submitted');
+
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 480;
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const frameData = canvas.toDataURL('image/jpeg', 0.8);
+
             const formData = new FormData(registerForm);
+            formData.set('frame', frameData);
+
             fetch('/register', {
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.json();
+            })
             .then(data => {
-                console.log('Register response:', data);
                 if (data.success) {
-                    registerForm.reset();
-                    alert('User registered successfully!');
+                    tickOverlay.style.display = 'flex';
+                    setTimeout(() => {
+                        tickOverlay.style.display = 'none';
+                        registerForm.reset();
+                        alert('User registered successfully!');
+                    }, 1000);
                 } else {
-                    alert(data.message);
+                    alert('Registration failed: ' + data.message);
                 }
             })
             .catch(error => {
                 console.error('Register error:', error);
-                alert('Registration failed: ' + error);
+                alert('Registration failed: ' + error.message);
             });
         });
 
         backBtn.addEventListener('click', () => {
-            console.log('Back button clicked');
             window.location.href = '/';
-        });
-    } else {
-        console.error('Register page elements missing:', {
-            videoFeed: !!videoFeed,
-            registerBtn: !!registerBtn,
-            backBtn: !!backBtn,
-            registerForm: !!registerForm
         });
     }
 });

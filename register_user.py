@@ -5,7 +5,6 @@ import numpy as np
 from config import DB_CONFIG
 import logging
 
-# Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -35,10 +34,6 @@ def register_user(name, roll_number, department, role, captured_frame):
         face_encoding = face_encodings[0]
         logger.info("Face encoding extracted successfully")
         
-        # Debug: Save face encoding to file
-        np.save("debug_face_encoding.npy", face_encoding)
-        logger.info("Saved debug_face_encoding.npy")
-
         logger.info("Attempting database insertion")
         with mysql.connector.connect(**DB_CONFIG) as conn:
             with conn.cursor(prepared=True) as cursor:
