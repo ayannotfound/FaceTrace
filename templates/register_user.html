@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register User</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Face Recognition Attendance System</h1>
+        <div class="main-layout">
+            <!-- Left Column: Camera Feed -->
+            <div class="left-column">
+                <div class="camera-section">
+                    <h2>Camera Feed</h2>
+                    <img id="video-feed" src="{{ url_for('video_feed') }}" alt="Camera Feed">
+                </div>
+            </div>
+
+            <!-- Right Column: Register Form and Navigation -->
+            <div class="right-column">
+                <!-- Register Section -->
+                <div class="register-section">
+                    <h2>Register User</h2>
+                    <form id="register-form">
+                        <div class="register-form">
+                            <label for="name">Name:</label>
+                            <input type="text" id="name" name="name" required>
+                            <label for="roll_number">Roll Number:</label>
+                            <input type="text" id="roll_number" name="roll_number" required>
+                            <label for="department">Department:</label>
+                            <input type="text" id="department" name="department" required>
+                            <label for="role">Role:</label>
+                            <select id="role" name="role" required>
+                                <option value="" disabled selected>Select Role</option>
+                                <option value="Teacher">Teacher</option>
+                                <option value="Student">Student</option>
+                            </select>
+                            <button type="submit" id="register-btn">Register</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Navigation Section -->
+                <div class="navigation-section">
+                    <h2>Navigation</h2>
+                    <div class="navigation-buttons">
+                        <button id="back-btn">Back to Main</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'91f24f896b28c018',t:'MTc0MTc3MjIyMy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>

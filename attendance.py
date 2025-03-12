@@ -1,45 +1,51 @@
-# attendance.py
 import mysql.connector
-import json
-from datetime import datetime
+import numpy as np
 from config import DB_CONFIG
+from datetime import datetime
+import logging
 
-# Cache for face encodings
-_encoding_cache = {}
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-def load_face_encodings() -> tuple[dict | None, str]:
-    """Load face encodings from the database with forced refresh."""
-    global _encoding_cache
-    # Clear the cache to ensure fresh data
-    _encoding_cache.clear()
-
+def load_face_encodings():
+    known_faces = {}
+    encoding_errors = 0
     try:
         with mysql.connector.connect(**DB_CONFIG) as conn:
             with conn.cursor() as cursor:
-                query = "SELECT id, name, face_encoding FROM users"
-                cursor.execute(query)
-                face_encodings = {}
-                for user_id, name, encoded_json in cursor:
-                    encoding = json.loads(encoded_json)
-                    face_encodings[user_id] = {"name": name, "encoding": encoding}
-                _encoding_cache.update(face_encodings)
-                return face_encodings, "Face encodings loaded successfully!"
+                cursor.execute("SELECT id, name, roll_number, face_encoding FROM users")
+                for user_id, name, roll_number, encoding_blob in cursor:
+                    try:
+                        if not isinstance(encoding_blob, bytes):
+                            logger.error(f"Encoding for user {user_id} ({name}) is not bytes: {type(encoding_blob)}")
+                            encoding_errors += 1
+                            continue
+                        encoding = np.frombuffer(encoding_blob, dtype=np.float64)
+                        known_faces[user_id] = {
+                            "encoding": encoding,
+                            "name": name,
+                            "roll_number": roll_number
+                        }
+                    except Exception as e:
+                        logger.error(f"Error decoding face encoding for user {user_id} ({name}): {e}")
+                        encoding_errors += 1
+        logger.info(f"Loaded {len(known_faces)} face encodings successfully, {encoding_errors} errors")
+        return known_faces, encoding_errors
     except mysql.connector.Error as err:
-        return None, f"Database error: {err}"
+        logger.error(f"Error loading face encodings: {err}")
+        return {}, encoding_errors
 
-def record_attendance(user_id: int, last_attendance: dict, cooldown: int = 30) -> tuple[bool, str]:
-    """Record attendance for a user if cooldown period has passed."""
+def record_attendance(user_id, last_attendance):
     current_time = datetime.now()
-    if user_id in last_attendance and (current_time - last_attendance[user_id]).seconds < cooldown:
-        return False, f"Cooldown active for user ID {user_id}"
-    
     try:
         with mysql.connector.connect(**DB_CONFIG) as conn:
             with conn.cursor() as cursor:
-                query = "INSERT INTO attendance (user_id, timestamp) VALUES (%s, %s)"
-                cursor.execute(query, (user_id, current_time))
+                cursor.execute(
+                    "INSERT INTO attendance (user_id, timestamp) VALUES (%s, %s)",
+                    (user_id, current_time)
+                )
                 conn.commit()
-                last_attendance[user_id] = current_time
-                return True, f"Attendance recorded for user ID {user_id} at {current_time}"
+        last_attendance[user_id] = current_time
+        logger.info(f"Attendance recorded for user {user_id}")
     except mysql.connector.Error as err:
-        return False, f"Database error: {err}"
+        logger.error(f"Error recording attendance: {err}")

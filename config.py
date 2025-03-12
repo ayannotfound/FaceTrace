@@ -1,7 +1,5 @@
-# config.py
 import os
 
-# Database configuration using environment variables for security
 DB_CONFIG = {
     "host": os.getenv("DB_HOST", "localhost"),
     "user": os.getenv("DB_USER", "admin"),  # Replace with your MySQL username

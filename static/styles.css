@@ -1,0 +1,259 @@
+/* static/styles.css */
+
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #1a1a1a; /* Dark gray background */
+    color: #e0e0e0; /* Light gray text */
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+h1 {
+    text-align: center;
+    color: #ffffff; /* White for emphasis */
+}
+
+.main-layout {
+    display: flex;
+    gap: 20px;
+}
+
+.left-column, .right-column {
+    flex: 1;
+}
+
+.camera-section, .attendance-section, .navigation-section, .users-section {
+    background-color: #2c2c2c; /* Darker gray for panels */
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    margin-bottom: 20px;
+}
+
+h2 {
+    margin-top: 0;
+    color: #b0b0b0; /* Lighter gray for subheadings */
+}
+
+#video-feed {
+    width: 100%;
+    max-width: 640px;
+    height: auto;
+    border: 2px solid #444; /* Dark border */
+    border-radius: 4px;
+}
+
+.attendance-buttons, .navigation-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+button {
+    padding: 10px 20px;
+    background-color: #007bff; /* Blue accent */
+    color: #ffffff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+button:disabled {
+    background-color: #555; /* Muted gray for disabled */
+    cursor: not-allowed;
+}
+
+button:hover:not(:disabled) {
+    background-color: #0056b3; /* Darker blue on hover */
+}
+
+#user-list {
+    list-style: none;
+    padding: 0;
+}
+
+#user-list li {
+    padding: 5px 0;
+    border-bottom: 1px solid #3a3a3a; /* Subtle dark border */
+}
+
+/* Tick Overlay */
+.tick-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7); /* Darker overlay */
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.tick {
+    width: 100px;
+    height: 100px;
+}
+
+.tick-circle {
+    fill: none;
+    stroke: #28a745; /* Green for tick */
+    stroke-width: 2;
+    stroke-miterlimit: 10;
+    stroke-dasharray: 166;
+    stroke-dashoffset: 166;
+    animation: stroke-circle 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+}
+
+.tick-check {
+    fill: none;
+    stroke: #28a745; /* Green for tick */
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 48;
+    stroke-dashoffset: 48;
+    animation: stroke-check 0.5s cubic-bezier(0.65, 0, 0.45, 1) 0.3s forwards;
+}
+
+@keyframes stroke-circle {
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+@keyframes stroke-check {
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+/* Modal Animations */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 999; /* Below tick overlay */
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.7); /* Darker overlay */
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+}
+
+.modal.show {
+    opacity: 1;
+}
+
+.modal-content {
+    background-color: #2c2c2c; /* Dark panel for modal */
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #444; /* Dark border */
+    width: 80%;
+    max-width: 500px;
+    transform: scale(0.7);
+    transition: transform 0.3s ease-in-out;
+    color: #e0e0e0; /* Light text */
+}
+
+.modal.show .modal-content {
+    transform: scale(1);
+}
+
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.close:hover,
+.close:focus {
+    color: #fff; /* White on hover */
+    text-decoration: none;
+    cursor: pointer;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+th, td {
+    padding: 8px;
+    text-align: left;
+    border-bottom: 1px solid #3a3a3a; /* Dark border */
+}
+
+th {
+    background-color: #3a3a3a; /* Slightly lighter gray for headers */
+}
+
+.clickable {
+    cursor: pointer;
+    color: #00b7ff; /* Bright blue for clickable */
+}
+
+.clickable:hover {
+    text-decoration: underline;
+}
+
+.details-btn, .delete-btn {
+    padding: 5px 10px;
+    margin: 0 5px;
+    font-size: 12px;
+}
+
+.details-btn {
+    background-color: #17a2b8; /* Cyan for details */
+}
+
+.details-btn:hover:not(:disabled) {
+    background-color: #138496; /* Darker cyan */
+}
+
+.delete-btn {
+    background-color: #dc3545; /* Red for delete */
+}
+
+.delete-btn:hover:not(:disabled) {
+    background-color: #c82333; /* Darker red */
+}
+
+/* Calendar Styles */
+#attendance-calendar table {
+    margin: 0 auto;
+}
+
+#attendance-calendar td {
+    width: 40px;
+    height: 40px;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.present {
+    background-color: #28a745; /* Green for present */
+    color: #fff;
+}
+
+.absent {
+    background-color: #dc3545; /* Red for absent */
+    color: #fff;
+}
+
+.non-working {
+    background-color: #444; /* Dark gray for weekends/future */
+    color: #aaa;
+}

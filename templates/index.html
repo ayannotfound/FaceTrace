@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Recognition Attendance System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Face Recognition Attendance System</h1>
+        <div class="main-layout">
+            <!-- Left Column: Camera Feed Only -->
+            <div class="left-column">
+                <div class="camera-section">
+                    <h2>Camera Feed</h2>
+                    <img id="video-feed" src="{{ url_for('video_feed') }}" alt="Camera Feed">
+                </div>
+            </div>
+
+            <!-- Right Column: Attendance Controls, Navigation, Users -->
+            <div class="right-column">
+                <!-- Attendance Controls -->
+                <div class="attendance-section">
+                    <h2>Attendance Controls</h2>
+                    <div class="attendance-buttons">
+                        <button id="start-attendance-btn">Start Attendance</button>
+                        <button id="stop-attendance-btn" disabled>Stop Attendance</button>
+                        <button id="view-history-btn">View History</button>
+                        <button id="export-attendance-btn">Export Attendance</button>
+                    </div>
+                </div>
+
+                <!-- Navigation -->
+                <div class="navigation-section">
+                    <h2>Navigation</h2>
+                    <div class="navigation-buttons">
+                        <button id="register-user-btn">Register User</button>
+                        <button id="manage-users-btn">Manage Users</button>
+                    </div>
+                </div>
+
+                <!-- User List -->
+                <div class="users-section">
+                    <h2>Registered Users</h2>
+                    <ul id="user-list"></ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tick Overlay for Green Tick Animation -->
+        <div id="tick-overlay" class="tick-overlay">
+            <svg class="tick" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+                <circle class="tick-circle" cx="26" cy="26" r="25"/>
+                <path class="tick-check" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+            </svg>
+        </div>
+
+        <!-- History Modal -->
+        <div id="history-modal" class="modal">
+            <div class="modal-content">
+                <span class="close">×</span>
+                <h2>Attendance History</h2>
+                <table id="history-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>User</th>
+                            <th>Roll Number</th>
+                            <th>Time</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Manage Users Modal -->
+        <div id="manage-users-modal" class="modal">
+            <div class="modal-content">
+                <span class="close">×</span>
+                <h2>Manage Users</h2>
+                <table id="users-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Roll Number</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- User Recognition Modal -->
+        <div id="user-recognition-modal" class="modal">
+            <div class="modal-content">
+                <span class="close">×</span>
+                <h2>User Recognized</h2>
+                <div id="user-details">
+                    <p><strong>Name:</strong> <span id="recognized-name"></span></p>
+                    <p><strong>Roll Number:</strong> <span id="recognized-roll"></span></p>
+                    <p><strong>Monthly Attendance:</strong> <span id="recognized-attendance-percentage" class="clickable"></span>%</p>
+                </div>
+                <h3>Recent Attendance</h3>
+                <table id="user-history-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="attendance-breakdown-modal" class="modal">
+            <div class="modal-content">
+                <span class="close">×</span>
+                <h2>Monthly Attendance Breakdown</h2>
+                <div id="attendance-calendar"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'91f24f896caf44ed',t:'MTc0MTc3MjIyMi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
