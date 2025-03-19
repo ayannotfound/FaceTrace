@@ -184,7 +184,7 @@ def get_user_history_endpoint():
         if 'error' in user_data:
             return jsonify(user_data), 404
         return jsonify(user_data)
-    except ValueValueError:
+    except ValueError:
         return jsonify({'error': 'Invalid User ID'}), 400
 
 def get_user_history(user_id):
@@ -201,14 +201,18 @@ def get_user_history(user_id):
                 history = [{"time": row[0], "date": row[1]} for row in cursor.fetchall()]
                 today = date.today()
                 first_day = today.replace(day=1)
-                last_day = today.replace(day=calendar.monthrange(today.year, today.month)[1])
+                # Calculate the first day of the next month
+                if today.month == 12:
+                    next_month_first_day = date(today.year + 1, 1, 1)
+                else:
+                    next_month_first_day = date(today.year, today.month + 1, 1)
                 query = """
                 SELECT DATE(timestamp)
                 FROM attendance
-                WHERE user_id = %s AND timestamp >= %s AND timestamp <= %s
+                WHERE user_id = %s AND timestamp >= %s AND timestamp < %s
                 GROUP BY DATE(timestamp)
                 """
-                cursor.execute(query, (user_id, first_day, last_day))
+                cursor.execute(query, (user_id, first_day, next_month_first_day))
                 attended_dates = [row[0] for row in cursor.fetchall()]
                 logger.info(f"User ID {user_id} attended_dates: {attended_dates}")
                 attended_days = len(attended_dates)
