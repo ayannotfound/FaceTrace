@@ -14,6 +14,7 @@ import time
 import logging
 import calendar
 import base64
+import gc
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -27,6 +28,29 @@ last_attendance = {}  # Tracks attendance cooldown (60 seconds)
 last_recognized = {}  # Tracks last emission time
 current_users = {}    # Tracks currently detected users
 
+# Cache face encodings to avoid reloading on each frame
+face_encoding_cache = None
+face_encoding_cache_timestamp = 0
+CACHE_TIMEOUT = 300  # Refresh the cache every 5 minutes
+
+def get_face_encodings():
+    """Get face encodings with caching to improve performance."""
+    global face_encoding_cache, face_encoding_cache_timestamp
+    
+    current_time = time.time()
+    if (face_encoding_cache is None or 
+        current_time - face_encoding_cache_timestamp > CACHE_TIMEOUT):
+        
+        # Clear any previous data to help with memory management
+        if face_encoding_cache:
+            face_encoding_cache = None
+            gc.collect()  # Force garbage collection
+            
+        face_encoding_cache, _ = load_face_encodings()
+        face_encoding_cache_timestamp = current_time
+        
+    return face_encoding_cache
+
 def process_frame(frame_data):
     """Process a base64-encoded frame from the client."""
     try:
@@ -38,7 +62,14 @@ def process_frame(frame_data):
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         face_locations = face_recognition.face_locations(rgb_frame)
 
-        known_faces, _ = load_face_encodings()
+        # Skip processing if no faces detected
+        if not face_locations:
+            return
+
+        known_faces = get_face_encodings()
+        if not known_faces:
+            return
+
         known_encodings = [data["encoding"] for data in known_faces.values()]
         known_names = [data["name"] for data in known_faces.values()]
         known_ids = list(known_faces.keys())
@@ -88,6 +119,10 @@ def process_frame(frame_data):
         for user_id in list(current_users.keys()):
             if user_id not in detected_users and (datetime.now() - current_users[user_id]).total_seconds() > 30:
                 del current_users[user_id]
+
+        # Help with memory management
+        del rgb_frame, face_locations, face_encodings
+        gc.collect()
 
     except Exception as e:
         logger.error(f"Error processing frame: {e}")

@@ -34,20 +34,24 @@ def register_user(name, roll_number, department, role, captured_frame):
         face_encoding = face_encodings[0]
         logger.info("Face encoding extracted successfully")
         
+        # Convert face encoding to bytes properly
+        encoding_bytes = face_encoding.tobytes()
+        
         logger.info("Attempting database insertion")
-        with mysql.connector.connect(**DB_CONFIG) as conn:
-            with conn.cursor(prepared=True) as cursor:
-                query = """
-                INSERT INTO users (name, roll_number, department, role, face_encoding)
-                VALUES (%s, %s, %s, %s, %s)
-                """
-                cursor.execute(query, (name, roll_number, department, role, face_encoding.tobytes()))
-                conn.commit()
-                logger.info(f"User {name} (Roll: {roll_number}) registered successfully")
-                return True, "User registered successfully"
-    except mysql.connector.Error as err:
-        logger.error(f"Database error during user registration: {err}")
-        return False, f"Database error: {err}"
+        try:
+            with mysql.connector.connect(**DB_CONFIG) as conn:
+                with conn.cursor(prepared=True) as cursor:
+                    query = """
+                    INSERT INTO users (name, roll_number, department, role, face_encoding)
+                    VALUES (%s, %s, %s, %s, %s)
+                    """
+                    cursor.execute(query, (name, roll_number, department, role, encoding_bytes))
+                    conn.commit()
+                    logger.info(f"User {name} (Roll: {roll_number}) registered successfully")
+                    return True, "User registered successfully"
+        except mysql.connector.Error as err:
+            logger.error(f"Database error during user registration: {err}")
+            return False, f"Database error: {err}"
     except Exception as e:
         logger.error(f"Unexpected error during user registration: {e}")
         return False, f"Unexpected error: {e}"

@@ -33,14 +33,28 @@ document.addEventListener('DOMContentLoaded', () => {
         canvas.height = video.videoHeight || 480;
         const context = canvas.getContext('2d');
         let lastFrameTime = 0;
-        const frameInterval = 500; // Throttle to 500ms (2 FPS)
+        const frameInterval = 750; // Reduce framerate to 1.33 FPS to reduce CPU load
+        let isFrameProcessing = false; // Flag to prevent overlapping frame processing
 
         function sendFrame(timestamp) {
-            if (timestamp - lastFrameTime >= frameInterval && video.srcObject) {
-                context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                const frameData = canvas.toDataURL('image/jpeg', 0.8);
-                socket.emit('video_frame', frameData);
-                lastFrameTime = timestamp;
+            if (!video.srcObject) {
+                requestAnimationFrame(sendFrame);
+                return; // Skip if video stream is not available
+            }
+            
+            // Only send a new frame if we're not processing one and enough time has passed
+            if (!isFrameProcessing && timestamp - lastFrameTime >= frameInterval) {
+                isFrameProcessing = true;
+                try {
+                    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    const frameData = canvas.toDataURL('image/jpeg', 0.7); // Lower quality for better performance
+                    socket.emit('video_frame', frameData);
+                    lastFrameTime = timestamp;
+                } catch (e) {
+                    console.error('Error capturing frame:', e);
+                } finally {
+                    isFrameProcessing = false;
+                }
             }
             requestAnimationFrame(sendFrame);
         }

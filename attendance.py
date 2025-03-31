@@ -29,7 +29,9 @@ def load_face_encodings():
                     except Exception as e:
                         logger.error(f"Error decoding face encoding for user {user_id} ({name}): {e}")
                         encoding_errors += 1
-        logger.info(f"Loaded {len(known_faces)} face encodings successfully, {encoding_errors} errors")
+        # Only log errors, no need to log successful loading count each time
+        if encoding_errors > 0:
+            logger.info(f"Encountered {encoding_errors} errors while loading face encodings")
         return known_faces, encoding_errors
     except mysql.connector.Error as err:
         logger.error(f"Error loading face encodings: {err}")
