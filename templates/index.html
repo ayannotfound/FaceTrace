@@ -18,7 +18,10 @@
             <div class="left-column">
                 <div class="camera-section">
                     <h2>Camera Feed</h2>
-                    <video id="video-feed" autoplay playsinline></video>
+                    <div class="video-container" style="position: relative;">
+                        <video id="video-feed" autoplay playsinline></video>
+                        <div id="status-message" class="status-message" style="display: none;"></div>
+                    </div>
                 </div>
             </div>
             <div class="right-column">

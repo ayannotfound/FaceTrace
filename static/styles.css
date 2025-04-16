@@ -46,6 +46,65 @@ h2 {
     height: auto;
     border: 2px solid #444;
     border-radius: 4px;
+    transition: border-color 0.3s ease;
+}
+
+#video-feed.no-face {
+    border-color: #ff4444;
+    animation: pulse-red 1s infinite;
+}
+
+#video-feed.face-detected {
+    border-color: #ffbb33;
+    animation: pulse-yellow 1s infinite;
+}
+
+#video-feed.face-recognized {
+    border-color: #00C851;
+    animation: pulse-green 1s infinite;
+}
+
+@keyframes pulse-red {
+    0% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(255, 68, 68, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0); }
+}
+
+@keyframes pulse-yellow {
+    0% { box-shadow: 0 0 0 0 rgba(255, 187, 51, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(255, 187, 51, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 187, 51, 0); }
+}
+
+@keyframes pulse-green {
+    0% { box-shadow: 0 0 0 0 rgba(0, 200, 81, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(0, 200, 81, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(0, 200, 81, 0); }
+}
+
+.status-message {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 8px 16px;
+    border-radius: 4px;
+    color: white;
+    font-weight: bold;
+    z-index: 1000;
+    transition: opacity 0.3s ease;
+}
+
+.status-message.no-face {
+    background-color: #ff4444;
+}
+
+.status-message.face-detected {
+    background-color: #ffbb33;
+}
+
+.status-message.face-recognized {
+    background-color: #00C851;
 }
 
 .attendance-buttons, .navigation-buttons {

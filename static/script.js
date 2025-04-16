@@ -217,6 +217,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     stopBtn.disabled = true;
                     recognizedQueue = [];
                     lastRecognizedRoll = null;
+                    
+                    // Clear status indicators
+                    const videoFeed = document.getElementById('video-feed');
+                    const statusMessage = document.getElementById('status-message');
+                    videoFeed.classList.remove('no-face', 'face-detected', 'face-recognized');
+                    statusMessage.classList.remove('no-face', 'face-detected', 'face-recognized');
+                    statusMessage.style.display = 'none';
                 })
                 .catch(error => console.error('Stop Attendance error:', error));
         }, 300));
@@ -463,4 +470,29 @@ document.addEventListener('DOMContentLoaded', () => {
             window.location.href = '/';
         });
     }
+
+    // Handle recognition status updates
+    socket.on('recognition_status', (data) => {
+        const videoFeed = document.getElementById('video-feed');
+        const statusMessage = document.getElementById('status-message');
+        
+        // Remove all status classes
+        videoFeed.classList.remove('no-face', 'face-detected', 'face-recognized');
+        statusMessage.classList.remove('no-face', 'face-detected', 'face-recognized');
+        
+        // Add appropriate class and show message
+        if (data.status) {
+            videoFeed.classList.add(data.status);
+            statusMessage.classList.add(data.status);
+            statusMessage.textContent = data.message;
+            statusMessage.style.display = 'block';
+            
+            // Hide message after 3 seconds if not a persistent state
+            if (data.status !== 'face-recognized') {
+                setTimeout(() => {
+                    statusMessage.style.display = 'none';
+                }, 3000);
+            }
+        }
+    });
 });

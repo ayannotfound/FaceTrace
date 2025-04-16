@@ -62,12 +62,25 @@ def process_frame(frame_data):
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         face_locations = face_recognition.face_locations(rgb_frame)
 
-        # Skip processing if no faces detected
-        if not face_locations:
-            return
+        # Only send status updates if attendance is running
+        if running:
+            # Send status for no face detected
+            if not face_locations:
+                socketio.emit('recognition_status', {
+                    'status': 'no-face',
+                    'message': 'No face detected - Please position your face in the frame'
+                })
+                return
 
-        known_faces = get_face_encodings()
-        if not known_faces:
+            known_faces = get_face_encodings()
+            if not known_faces:
+                socketio.emit('recognition_status', {
+                    'status': 'error',
+                    'message': 'Error loading face encodings'
+                })
+                return
+        else:
+            # If attendance is not running, just return without processing
             return
 
         known_encodings = [data["encoding"] for data in known_faces.values()]
@@ -76,6 +89,7 @@ def process_frame(frame_data):
         known_roll_numbers = [data["roll_number"] for data in known_faces.values()]
 
         detected_users = set()
+        face_recognized = False
 
         if known_encodings and face_locations:
             face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
@@ -92,6 +106,7 @@ def process_frame(frame_data):
                         user_id = known_ids[best_match_index]
                         roll_number = known_roll_numbers[best_match_index]
                         detected_users.add(user_id)
+                        face_recognized = True
 
                         if running:
                             should_record = user_id not in last_attendance or (datetime.now() - last_attendance[user_id]).total_seconds() > 60
@@ -116,6 +131,18 @@ def process_frame(frame_data):
                                 }
                                 socketio.emit('user_recognized', data)
                                 last_recognized[user_id] = datetime.now()
+
+        # Send status for face detection/recognition
+        if face_recognized:
+            socketio.emit('recognition_status', {
+                'status': 'face-recognized',
+                'message': f'Face recognized - Welcome {name}'
+            })
+        else:
+            socketio.emit('recognition_status', {
+                'status': 'face-detected',
+                'message': 'Face detected but not recognized - Please register first'
+            })
 
         # Clean up current_users
         for user_id in list(current_users.keys()):
