@@ -110,7 +110,9 @@ def process_frame(frame_data):
                                     'user_id': user_id,
                                     'history': user_data['history'],
                                     'attendance_percentage': user_data['attendance_percentage'],
-                                    'attended_dates': user_data['attended_dates']
+                                    'attended_dates': user_data['attended_dates'],
+                                    'department': user_data['department'],
+                                    'role': user_data['role']
                                 }
                                 socketio.emit('user_recognized', data)
                                 last_recognized[user_id] = datetime.now()
