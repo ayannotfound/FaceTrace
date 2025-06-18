@@ -1,12 +1,8 @@
-from flask import Flask, Response, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify, send_file
 from flask_socketio import SocketIO
 import cv2
 import face_recognition
 import numpy as np
-import mysql.connector
-from config import DB_CONFIG
-from register_user import register_user
-from attendance import load_face_encodings, record_attendance
 import pandas as pd
 from datetime import datetime, date, timedelta
 import io
@@ -15,6 +11,11 @@ import logging
 import calendar
 import base64
 import gc
+import mysql.connector
+
+from config import DB_CONFIG
+from attendance_utils import load_face_encodings, record_attendance
+from user_utils import register_user, get_user_history
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -23,55 +24,43 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 socketio = SocketIO(app)
 
+# Global state
 running = False
-last_attendance = {}  # Tracks attendance cooldown (60 seconds)
-last_recognized = {}  # Tracks last emission time
-current_users = {}    # Tracks currently detected users
-
-# Cache face encodings to avoid reloading on each frame
+last_attendance = {}
+last_recognized = {}
+current_users = {}
 face_encoding_cache = None
 face_encoding_cache_timestamp = 0
-CACHE_TIMEOUT = 300  # Refresh the cache every 5 minutes
+CACHE_TIMEOUT = 300  # 5 minutes
 
 def get_face_encodings():
     """Get face encodings with caching to improve performance."""
     global face_encoding_cache, face_encoding_cache_timestamp
-    
     current_time = time.time()
     if (face_encoding_cache is None or 
         current_time - face_encoding_cache_timestamp > CACHE_TIMEOUT):
-        
-        # Clear any previous data to help with memory management
         if face_encoding_cache:
             face_encoding_cache = None
-            gc.collect()  # Force garbage collection
-            
+            gc.collect()
         face_encoding_cache, _ = load_face_encodings()
         face_encoding_cache_timestamp = current_time
-        
     return face_encoding_cache
 
 def process_frame(frame_data):
     """Process a base64-encoded frame from the client."""
     try:
-        # Decode base64 frame
         img_data = base64.b64decode(frame_data.split(',')[1])
         nparray = np.frombuffer(img_data, np.uint8)
         frame = cv2.imdecode(nparray, cv2.IMREAD_COLOR)
-        
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         face_locations = face_recognition.face_locations(rgb_frame)
-
-        # Only send status updates if attendance is running
         if running:
-            # Send status for no face detected
             if not face_locations:
                 socketio.emit('recognition_status', {
                     'status': 'no-face',
                     'message': 'No face detected - Please position your face in the frame'
                 })
                 return
-
             known_faces = get_face_encodings()
             if not known_faces:
                 socketio.emit('recognition_status', {
@@ -80,17 +69,13 @@ def process_frame(frame_data):
                 })
                 return
         else:
-            # If attendance is not running, just return without processing
             return
-
         known_encodings = [data["encoding"] for data in known_faces.values()]
         known_names = [data["name"] for data in known_faces.values()]
         known_ids = list(known_faces.keys())
         known_roll_numbers = [data["roll_number"] for data in known_faces.values()]
-
         detected_users = set()
         face_recognized = False
-
         if known_encodings and face_locations:
             face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
             for face_encoding in face_encodings:
@@ -107,16 +92,13 @@ def process_frame(frame_data):
                         roll_number = known_roll_numbers[best_match_index]
                         detected_users.add(user_id)
                         face_recognized = True
-
                         if running:
                             should_record = user_id not in last_attendance or (datetime.now() - last_attendance[user_id]).total_seconds() > 60
                             current_users[user_id] = datetime.now()
                             should_emit = (user_id not in last_recognized or 
                                           (datetime.now() - last_recognized[user_id]).total_seconds() > 300)
-
                             if should_record:
                                 record_attendance(user_id, last_attendance)
-
                             if should_emit:
                                 user_data = get_user_history(user_id)
                                 data = {
@@ -131,8 +113,6 @@ def process_frame(frame_data):
                                 }
                                 socketio.emit('user_recognized', data)
                                 last_recognized[user_id] = datetime.now()
-
-        # Send status for face detection/recognition
         if face_recognized:
             socketio.emit('recognition_status', {
                 'status': 'face-recognized',
@@ -143,22 +123,16 @@ def process_frame(frame_data):
                 'status': 'face-detected',
                 'message': 'Face detected but not recognized - Please register first'
             })
-
-        # Clean up current_users
         for user_id in list(current_users.keys()):
             if user_id not in detected_users and (datetime.now() - current_users[user_id]).total_seconds() > 30:
                 del current_users[user_id]
-
-        # Help with memory management
-        del rgb_frame, face_locations, face_encodings
+        del rgb_frame, face_locations
         gc.collect()
-
     except Exception as e:
         logger.error(f"Error processing frame: {e}")
 
 @socketio.on('video_frame')
 def handle_video_frame(data):
-    """Handle video frames sent from the client."""
     process_frame(data)
 
 @app.route('/')
@@ -173,26 +147,19 @@ def register():
         department = request.form.get('department')
         role = request.form.get('role')
         frame_data = request.form.get('frame')
-
         if not all([name, roll_number, department, role, frame_data]):
             return jsonify({"success": False, "message": "All fields are required"})
-
         if role not in ['Teacher', 'Student']:
             return jsonify({"success": False, "message": "Invalid role selected"})
-
-        # Decode frame
         img_data = base64.b64decode(frame_data.split(',')[1])
         nparray = np.frombuffer(img_data, np.uint8)
         frame = cv2.imdecode(nparray, cv2.IMREAD_COLOR)
-        
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         face_locations = face_recognition.face_locations(rgb_frame)
         if not face_locations:
             return jsonify({"success": False, "message": "No face detected in frame"})
-        
         top, right, bottom, left = face_locations[0]
         captured_frame = frame[top:bottom, left:right]
-        
         success, message = register_user(name, roll_number, department, role, captured_frame)
         return jsonify({"success": success, "message": message})
     except Exception as e:
@@ -227,7 +194,7 @@ def get_history():
     with mysql.connector.connect(**DB_CONFIG) as conn:
         with conn.cursor() as cursor:
             query = """
-            SELECT a.id, u.name, u.roll_number, DATE_FORMAT(a.timestamp, '%H:%i:%s'), 
+            SELECT a.id, u.name, u.roll_number, DATE_FORMAT(a.timestamp, '%H:%i:%s'), \
                    DATE_FORMAT(a.timestamp, '%Y-%m-%d')
             FROM attendance a
             JOIN users u ON a.user_id = u.id
@@ -250,53 +217,6 @@ def get_user_history_endpoint():
         return jsonify(user_data)
     except ValueError:
         return jsonify({'error': 'Invalid User ID'}), 400
-
-def get_user_history(user_id):
-    try:
-        with mysql.connector.connect(**DB_CONFIG) as conn:
-            with conn.cursor(prepared=True) as cursor:
-                cursor.execute("SELECT name, roll_number, department, role FROM users WHERE id = %s", (user_id,))
-                user = cursor.fetchone()
-                if not user:
-                    return {'error': f'User ID {user_id} not found'}
-                name, roll_number, department, role = user
-                query = "SELECT DATE_FORMAT(timestamp, '%H:%i:%s'), DATE_FORMAT(timestamp, '%Y-%m-%d') FROM attendance WHERE user_id = %s ORDER BY timestamp DESC"
-                cursor.execute(query, (user_id,))
-                history = [{"time": row[0], "date": row[1]} for row in cursor.fetchall()]
-                today = date.today()
-                first_day = today.replace(day=1)
-                # Calculate the first day of the next month
-                if today.month == 12:
-                    next_month_first_day = date(today.year + 1, 1, 1)
-                else:
-                    next_month_first_day = date(today.year, today.month + 1, 1)
-                query = """
-                SELECT DATE(timestamp)
-                FROM attendance
-                WHERE user_id = %s AND timestamp >= %s AND timestamp < %s
-                GROUP BY DATE(timestamp)
-                """
-                cursor.execute(query, (user_id, first_day, next_month_first_day))
-                attended_dates = [row[0] for row in cursor.fetchall()]
-                logger.info(f"User ID {user_id} attended_dates: {attended_dates}")
-                attended_days = len(attended_dates)
-                working_days_list = [(first_day + timedelta(days=d)).strftime('%Y-%m-%d')
-                                    for d in range((today - first_day).days + 1)
-                                    if (first_day + timedelta(days=d)).weekday() < 5]
-                working_days = len(working_days_list)
-                percentage = (attended_days / working_days * 100) if working_days > 0 else 0
-                return {
-                    'name': name,
-                    'roll_number': roll_number,
-                    'department': department,
-                    'role': role,
-                    'history': history,
-                    'attendance_percentage': round(percentage, 2),
-                    'attended_dates': [d.strftime('%Y-%m-%d') for d in attended_dates]
-                }
-    except mysql.connector.Error as err:
-        logger.error(f"Error fetching user history: {err}")
-        return {'error': str(err)}
 
 @app.route('/export')
 def export_attendance():
@@ -359,4 +279,4 @@ if __name__ == '__main__':
     try:
         socketio.run(app, debug=True, use_reloader=False)
     except Exception as e:
-        logger.error(f"Unexpected error in main: {e}")
+        logger.error(f"Unexpected error in main: {e}") 

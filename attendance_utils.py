@@ -8,6 +8,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def load_face_encodings():
+    """
+    Load all face encodings from the database.
+    Returns a dict of user_id -> {encoding, name, roll_number} and error count.
+    """
     known_faces = {}
     encoding_errors = 0
     try:
@@ -29,7 +33,6 @@ def load_face_encodings():
                     except Exception as e:
                         logger.error(f"Error decoding face encoding for user {user_id} ({name}): {e}")
                         encoding_errors += 1
-        # Only log errors, no need to log successful loading count each time
         if encoding_errors > 0:
             logger.info(f"Encountered {encoding_errors} errors while loading face encodings")
         return known_faces, encoding_errors
@@ -38,6 +41,9 @@ def load_face_encodings():
         return {}, encoding_errors
 
 def record_attendance(user_id, last_attendance):
+    """
+    Record attendance for a user by user_id. Updates last_attendance dict.
+    """
     current_time = datetime.now()
     try:
         with mysql.connector.connect(**DB_CONFIG) as conn:
@@ -50,4 +56,4 @@ def record_attendance(user_id, last_attendance):
         last_attendance[user_id] = current_time
         logger.info(f"Attendance recorded for user {user_id}")
     except mysql.connector.Error as err:
-        logger.error(f"Error recording attendance: {err}")
+        logger.error(f"Error recording attendance: {err}") 
