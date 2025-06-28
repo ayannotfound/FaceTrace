@@ -1,4 +1,4 @@
-# 🧑‍💼 Face Recognition Attendance System
+# 🧑‍💼 FaceTrace
 
 A simple, modern web app for automatic attendance using face recognition, built with [Flask](https://flask.palletsprojects.com/) and [OpenCV](https://opencv.org/). Capture face data, register users, and mark attendance in real time—all from your browser.
 
@@ -26,8 +26,8 @@ A simple, modern web app for automatic attendance using face recognition, built 
 
 1. **Clone the repo**
    ```bash
-   git clone https://github.com/ayannotfound/FaceRecognition-Attendance.git
-   cd FaceRecognition-Attendance
+   git clone https://github.com/ayannotfound/FaceTrace.git
+   cd FaceTrace
    ```
 2. **Install dependencies**
    ```bash
