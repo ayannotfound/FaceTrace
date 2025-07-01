@@ -34,7 +34,7 @@ A simple, modern web app for automatic attendance using face recognition, built 
    pip install -r requirements.txt
    ```
 3. **Configure the database**
-   - Create a .env file with:
+   Create a `.env` file with:
    ```bash
    MONGO_URI=mongodb:your_uri
    DB_NAME=facetrace

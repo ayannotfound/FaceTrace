@@ -1,0 +1,11 @@
+flask
+flask-socketio
+python-socketio[client]
+python-engineio
+eventlet
+pymongo
+face-recognition
+opencv-python
+python-dotenv
+numpy
+pandas
