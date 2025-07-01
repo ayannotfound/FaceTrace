@@ -1,59 +1,40 @@
-import mysql.connector
+from config import db
 import numpy as np
-from config import DB_CONFIG
 from datetime import datetime
 import logging
+from bson import ObjectId
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def load_face_encodings():
-    """
-    Load all face encodings from the database.
-    Returns a dict of user_id -> {encoding, name, roll_number} and error count.
-    """
     known_faces = {}
     encoding_errors = 0
     try:
-        with mysql.connector.connect(**DB_CONFIG) as conn:
-            with conn.cursor() as cursor:
-                cursor.execute("SELECT id, name, roll_number, face_encoding FROM users")
-                for user_id, name, roll_number, encoding_blob in cursor:
-                    try:
-                        if not isinstance(encoding_blob, bytes):
-                            logger.error(f"Encoding for user {user_id} ({name}) is not bytes: {type(encoding_blob)}")
-                            encoding_errors += 1
-                            continue
-                        encoding = np.frombuffer(encoding_blob, dtype=np.float64)
-                        known_faces[user_id] = {
-                            "encoding": encoding,
-                            "name": name,
-                            "roll_number": roll_number
-                        }
-                    except Exception as e:
-                        logger.error(f"Error decoding face encoding for user {user_id} ({name}): {e}")
-                        encoding_errors += 1
-        if encoding_errors > 0:
-            logger.info(f"Encountered {encoding_errors} errors while loading face encodings")
+        users = db.users.find()
+        for user in users:
+            try:
+                encoding = np.array(user['face_encoding'], dtype=np.float64)
+                known_faces[str(user['_id'])] = {
+                    "encoding": encoding,
+                    "name": user["name"],
+                    "roll_number": user["roll_number"]
+                }
+            except Exception as e:
+                logger.error(f"Decoding error: {e}")
+                encoding_errors += 1
         return known_faces, encoding_errors
-    except mysql.connector.Error as err:
-        logger.error(f"Error loading face encodings: {err}")
+    except Exception as e:
+        logger.error(f"DB error: {e}")
         return {}, encoding_errors
 
 def record_attendance(user_id, last_attendance):
-    """
-    Record attendance for a user by user_id. Updates last_attendance dict.
-    """
     current_time = datetime.now()
     try:
-        with mysql.connector.connect(**DB_CONFIG) as conn:
-            with conn.cursor() as cursor:
-                cursor.execute(
-                    "INSERT INTO attendance (user_id, timestamp) VALUES (%s, %s)",
-                    (user_id, current_time)
-                )
-                conn.commit()
+        db.attendance.insert_one({
+            "user_id": ObjectId(user_id),
+            "timestamp": current_time
+        })
         last_attendance[user_id] = current_time
-        logger.info(f"Attendance recorded for user {user_id}")
-    except mysql.connector.Error as err:
-        logger.error(f"Error recording attendance: {err}") 
+        logger.info(f"Attendance recorded for {user_id}")
+    except Exception as e:
+        logger.error(f"Error recording attendance: {e}")

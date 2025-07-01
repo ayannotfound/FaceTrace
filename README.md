@@ -10,14 +10,14 @@ A simple, modern web app for automatic attendance using face recognition, built 
 - 📊 Attendance history and export (CSV)
 - 🏫 Separate roles: Teacher & Student
 - 🖥️ Responsive web interface
-- 🗃️ MySQL database backend
+- 🗃️ MongoDB backend
 
 ---
 
 ## 🧩 Tech Stack
 - Python (Flask, Flask-SocketIO)
 - OpenCV, face-recognition
-- MySQL
+- MongoDB
 - HTML, CSS, JavaScript
 
 ---
@@ -34,8 +34,11 @@ A simple, modern web app for automatic attendance using face recognition, built 
    pip install -r requirements.txt
    ```
 3. **Configure the database**
-   - Edit `config.py` with your MySQL credentials.
-   - Make sure your MySQL server is running and the required tables exist.
+   - Create a .env file with:
+   ```bash
+   MONGO_URI=mongodb:your_uri
+   DB_NAME=facetrace
+   ```
 
 4. **Run the app**
    ```bash
@@ -59,7 +62,7 @@ A simple, modern web app for automatic attendance using face recognition, built 
 
 - Flask routes, templates, and SocketIO events
 - Integrating OpenCV and face-recognition with Flask
-- MySQL database operations in Python
+- Using MongoDB for user and attendance data
 - Building a real-time web app
 
 ---
@@ -75,3 +78,4 @@ A simple, modern web app for automatic attendance using face recognition, built 
 - [Flask Quickstart](https://github.com/pallets/flask/blob/main/docs/quickstart.rst#_snippet_5)
 - [face-recognition Docs](https://github.com/ageitgey/face_recognition)
 - [OpenCV Docs](https://docs.opencv.org/)
+- [PyMongo Docs](https://pymongo.readthedocs.io/)

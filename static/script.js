@@ -239,7 +239,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     data.forEach(record => {
                         const tr = document.createElement('tr');
                         tr.innerHTML = `
-                            <td>${record.id}</td>
                             <td>${record.name}</td>
                             <td>${record.roll_number}</td>
                             <td>${record.time}</td>
@@ -263,7 +262,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     data.forEach(user => {
                         const tr = document.createElement('tr');
                         tr.innerHTML = `
-                            <td>${user.id}</td>
                             <td>${user.name}</td>
                             <td>${user.roll_number}</td>
                             <td>
