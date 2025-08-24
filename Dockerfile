@@ -1,18 +1,13 @@
-# Use official Python 3.10 slim image
-FROM python:3.10-slim
-
-# Install system dependencies for dlib and face-recognition
-RUN apt-get update && \
-    apt-get install -y build-essential cmake libopenblas-dev liblapack-dev libx11-dev libgtk-3-dev && \
-    rm -rf /var/lib/apt/lists/*
+# Use a pre-built image with dlib and face-recognition already installed
+FROM bamos/face-recognition:latest
 
 # Set work directory
 WORKDIR /app
 
-# Copy requirements and install Python dependencies
+# Copy requirements (except face-recognition and dlib, already installed)
 COPY requirements.txt ./
-RUN pip install --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+RUN pip install --upgrade pip \
+    && pip install --no-deps --no-cache-dir -r requirements.txt
 
 # Copy the rest of the code
 COPY . .
