@@ -5,7 +5,7 @@ python-engineio
 eventlet
 pymongo
 face-recognition
-opencv-python
+opencv-python-headless
 python-dotenv
 numpy
 pandas

@@ -1,0 +1,7 @@
+# Render Blueprint Spec
+services:
+  - type: web
+    name: facerec-app
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
