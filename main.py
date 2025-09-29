@@ -1,3 +1,7 @@
+# CRITICAL: eventlet monkey patch MUST be first, before any other imports
+import eventlet
+eventlet.monkey_patch()
+
 import os
 from flask import Flask, render_template, request, jsonify, send_file
 from flask_socketio import SocketIO
@@ -23,7 +27,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Load .env
-load_dotenv()  # <-- Added
+load_dotenv()
 
 # Flask setup
 app = Flask(__name__)
@@ -307,10 +311,7 @@ def shutdown():
     return 'Server shutting down...'
 
 if __name__ == '__main__':
-    import eventlet
-    eventlet.monkey_patch()
-    socketio.run(app, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
     try:
-        socketio.run(app, debug=True, use_reloader=False)
+        socketio.run(app, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=True, use_reloader=False)
     except Exception as e:
         logger.error(f"Unexpected error in main: {e}")
