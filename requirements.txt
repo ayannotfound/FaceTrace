@@ -4,7 +4,6 @@ python-socketio[client]
 python-engineio
 eventlet
 pymongo
-face-recognition
 opencv-python-headless
 python-dotenv
 numpy
