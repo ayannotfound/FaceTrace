@@ -47,6 +47,8 @@ current_users = {}
 face_encoding_cache = None
 face_encoding_cache_timestamp = 0
 CACHE_TIMEOUT = 300
+last_frame_process = 0
+FRAME_SKIP_MS = 1000  # Process only every 1000ms (1 second)
 
 @app.before_request
 def log_request_info():
@@ -67,12 +69,31 @@ def get_face_encodings():
     return face_encoding_cache
 
 def process_frame(frame_data):
+    global last_frame_process
+    current_time = time.time() * 1000  # milliseconds
+    
+    # Skip frames if processing too frequently
+    if current_time - last_frame_process < FRAME_SKIP_MS:
+        return
+    
+    last_frame_process = current_time
+    
     try:
         img_data = base64.b64decode(frame_data.split(',')[1])
         nparray = np.frombuffer(img_data, np.uint8)
         frame = cv2.imdecode(nparray, cv2.IMREAD_COLOR)
+        
+        # Resize frame for faster processing
+        height, width = frame.shape[:2]
+        if width > 640:
+            scale = 640 / width
+            new_width = int(width * scale)
+            new_height = int(height * scale)
+            frame = cv2.resize(frame, (new_width, new_height))
+        
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        face_locations = face_recognition.face_locations(rgb_frame)
+        # Use faster HOG model instead of CNN
+        face_locations = face_recognition.face_locations(rgb_frame, model="hog")
 
         known_faces = get_face_encodings()
         if known_faces is None or len(known_faces) == 0:
@@ -100,10 +121,12 @@ def process_frame(frame_data):
 
         face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
         for face_encoding in face_encodings:
-            matches = face_recognition.compare_faces(known_encodings, face_encoding, tolerance=0.6)
+            # Use higher tolerance for faster matching
+            matches = face_recognition.compare_faces(known_encodings, face_encoding, tolerance=0.5)
             if True in matches:
-                best_match_index = np.argmin(face_recognition.face_distance(known_encodings, face_encoding))
-                if matches[best_match_index]:
+                distances = face_recognition.face_distance(known_encodings, face_encoding)
+                best_match_index = np.argmin(distances)
+                if matches[best_match_index] and distances[best_match_index] < 0.5:
                     user_id = known_ids[best_match_index]
                     name = known_names[best_match_index]
                     roll_number = known_roll_numbers[best_match_index]
@@ -156,7 +179,8 @@ def process_frame(frame_data):
 
 @socketio.on('video_frame')
 def handle_video_frame(data):
-    process_frame(data)
+    # Process frame asynchronously to avoid blocking
+    socketio.start_background_task(process_frame, data)
 
 @app.route('/')
 def index():
@@ -302,6 +326,36 @@ def delete_user(user_id):
     except Exception as e:
         return jsonify({"success": False, "message": f"Error deleting user: {e}"})
 
+@app.route('/health')
+def health_check():
+    """Health check endpoint for monitoring"""
+    return jsonify({
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "cache_size": len(face_encoding_cache) if face_encoding_cache else 0,
+        "active_users": len(current_users),
+        "running": running
+    })
+
+@app.route('/performance')
+def performance_stats():
+    """Performance statistics endpoint"""
+    import psutil
+    import os
+    
+    try:
+        process = psutil.Process(os.getpid())
+        return jsonify({
+            "memory_mb": process.memory_info().rss / 1024 / 1024,
+            "cpu_percent": process.cpu_percent(),
+            "active_connections": len(current_users),
+            "cache_age": time.time() - face_encoding_cache_timestamp if face_encoding_cache_timestamp else 0,
+            "frame_skip_ms": FRAME_SKIP_MS,
+            "running": running
+        })
+    except ImportError:
+        return jsonify({"error": "psutil not available"})
+
 @app.route('/shutdown', methods=['POST'])
 def shutdown():
     func = request.environ.get('werkzeug.server.shutdown')
@@ -312,6 +366,15 @@ def shutdown():
 
 if __name__ == '__main__':
     try:
-        socketio.run(app, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=True, use_reloader=False)
+        # Use production settings for better performance
+        debug_mode = os.environ.get('DEBUG', 'False').lower() == 'true'
+        socketio.run(
+            app, 
+            host='0.0.0.0', 
+            port=int(os.environ.get('PORT', 5000)), 
+            debug=debug_mode, 
+            use_reloader=False,
+            log_output=not debug_mode  # Reduce logging in production
+        )
     except Exception as e:
         logger.error(f"Unexpected error in main: {e}")

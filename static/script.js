@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
         canvas.height = video.videoHeight || 480;
         const context = canvas.getContext('2d');
         let lastFrameTime = 0;
-        const frameInterval = 750; // Reduce framerate to 1.33 FPS to reduce CPU load
+        const frameInterval = 2000; // Reduce to 0.5 FPS for better performance on slow servers
         let isFrameProcessing = false; // Flag to prevent overlapping frame processing
 
         function sendFrame(timestamp) {
@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 isFrameProcessing = true;
                 try {
                     context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    const frameData = canvas.toDataURL('image/jpeg', 0.7); // Lower quality for better performance
+                    const frameData = canvas.toDataURL('image/jpeg', 0.5); // Much lower quality for speed
                     socket.emit('video_frame', frameData);
                     lastFrameTime = timestamp;
                 } catch (e) {

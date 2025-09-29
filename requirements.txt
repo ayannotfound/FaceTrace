@@ -8,3 +8,5 @@ opencv-python-headless
 python-dotenv
 numpy
 pandas
+gunicorn
+psutil
