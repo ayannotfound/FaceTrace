@@ -366,15 +366,22 @@ def shutdown():
 
 if __name__ == '__main__':
     try:
-        # Use production settings for better performance
+        # Get port from environment (Render sets PORT automatically)
+        port = int(os.environ.get('PORT', 5000))
         debug_mode = os.environ.get('DEBUG', 'False').lower() == 'true'
+        
+        logger.info(f"Starting FaceTrace on port {port}")
+        logger.info(f"Debug mode: {debug_mode}")
+        
         socketio.run(
             app, 
-            host='0.0.0.0', 
-            port=int(os.environ.get('PORT', 5000)), 
+            host='0.0.0.0',  # Bind to all interfaces for cloud deployment
+            port=port, 
             debug=debug_mode, 
-            use_reloader=False,
-            log_output=not debug_mode  # Reduce logging in production
+            use_reloader=False,  # Disable reloader in production
+            log_output=not debug_mode,  # Reduce logging in production
+            allow_unsafe_werkzeug=True  # Allow in production if needed
         )
     except Exception as e:
-        logger.error(f"Unexpected error in main: {e}")
+        logger.error(f"Failed to start server: {e}")
+        raise

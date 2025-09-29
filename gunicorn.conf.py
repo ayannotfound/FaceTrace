@@ -1,8 +1,9 @@
 # Gunicorn configuration for production deployment
 import os
 
-# Server socket
-bind = f"0.0.0.0:{os.environ.get('PORT', 5000)}"
+# Server socket - Render provides PORT environment variable
+port = os.environ.get('PORT', 5000)
+bind = f"0.0.0.0:{port}"
 backlog = 2048
 
 # Worker processes
@@ -19,10 +20,13 @@ max_requests_jitter = 100
 # Logging
 accesslog = "-"
 errorlog = "-"
-loglevel = "warning"  # Reduce log verbosity for performance
+loglevel = "info" if os.environ.get('DEBUG', 'False').lower() == 'true' else "warning"
 
 # Process naming
-proc_name = 'facerec-app'
+proc_name = 'facetrace-app'
 
 # Memory management
 preload_app = True
+
+# Render-specific optimizations
+bind_unix_socket = None  # Use TCP socket for cloud deployment

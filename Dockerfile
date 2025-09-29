@@ -20,8 +20,8 @@ ENV PYTHONUNBUFFERED=1
 ENV OMP_NUM_THREADS=1
 ENV MKL_NUM_THREADS=1
 
-# Expose port
-EXPOSE 10000
+# Expose port - Render will set PORT env var dynamically
+EXPOSE $PORT
 
 # Start the app with optimized startup script
 CMD ["./start.sh"]
